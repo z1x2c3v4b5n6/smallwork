@@ -2,6 +2,7 @@ package com.example.gaokao.service.impl;
 
 import com.example.gaokao.domain.*;
 import com.example.gaokao.service.*;
+import java.math.BigDecimal;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -43,19 +44,20 @@ public class DataImportServiceImpl implements DataImportService {
             }
             Map<String, Long> universityCache = new HashMap<>();
             Map<String, Long> majorCache = new HashMap<>();
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            int firstDataRow = Math.max(sheet.getFirstRowNum() + 1, 1);
+            for (int i = firstDataRow; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) {
                     continue;
                 }
-                String universityName = getStringCellValue(row, 0, formatter);
+                String universityName = getStringCellValue(row, 6, formatter);
                 if (universityName.isEmpty()) {
                     continue;
                 }
-                String province = getStringCellValue(row, 1, formatter);
-                String city = getStringCellValue(row, 2, formatter);
-                String level = getStringCellValue(row, 3, formatter);
-                String type = getStringCellValue(row, 4, formatter);
+                String province = getStringCellValue(row, 2, formatter);
+                String city = getStringCellValue(row, 7, formatter);
+                String level = "";
+                String type = getStringCellValue(row, 3, formatter);
                 String doubleTopFlag = getStringCellValue(row, 5, formatter).toLowerCase();
                 boolean isDoubleTop = "是".equals(doubleTopFlag) ||
                         "y".equals(doubleTopFlag) ||
@@ -78,13 +80,13 @@ public class DataImportServiceImpl implements DataImportService {
                     return exist.getId();
                 });
 
-                String majorName = getStringCellValue(row, 6, formatter);
+                String majorName = getStringCellValue(row, 11, formatter);
                 if (majorName.isEmpty()) {
                     continue;
                 }
-                String category = getStringCellValue(row, 7, formatter);
-                String discipline = getStringCellValue(row, 8, formatter);
-                String subjectReq = getStringCellValue(row, 9, formatter);
+                String category = getStringCellValue(row, 3, formatter);
+                String discipline = getStringCellValue(row, 9, formatter);
+                String subjectReq = getStringCellValue(row, 12, formatter);
                 String majorLevel = getStringCellValue(row, 10, formatter);
 
                 Long majorId = majorCache.computeIfAbsent(majorName, name -> {
@@ -102,18 +104,18 @@ public class DataImportServiceImpl implements DataImportService {
                     return exist.getId();
                 });
 
-                String batch = getStringCellValue(row, 11, formatter);
-                Integer duration = getIntegerCellValue(row, 12, formatter);
-                Integer tuition = getIntegerCellValue(row, 13, formatter);
-                Integer year = getIntegerCellValue(row, 14, formatter);
+                String batch = getStringCellValue(row, 4, formatter);
+                Integer duration = getIntegerCellValue(row, 13, formatter);
+                Integer tuition = getIntegerCellValue(row, 14, formatter);
+                Integer year = getIntegerCellValue(row, 1, formatter);
                 if (year == null) {
                     continue;
                 }
-                Integer minScore = getIntegerCellValue(row, 15, formatter);
-                Integer minRank = getIntegerCellValue(row, 16, formatter);
-                Integer avgScore = getIntegerCellValue(row, 17, formatter);
-                Integer avgRank = getIntegerCellValue(row, 18, formatter);
-                Integer admitCount = getIntegerCellValue(row, 19, formatter);
+                Integer minScore = getIntegerCellValue(row, 16, formatter);
+                Integer minRank = getIntegerCellValue(row, 17, formatter);
+                Integer avgScore = getIntegerCellValue(row, 18, formatter);
+                Integer avgRank = getIntegerCellValue(row, 19, formatter);
+                Integer admitCount = getIntegerCellValue(row, 15, formatter);
 
                 UniversityMajor universityMajor = universityMajorService.lambdaQuery()
                         .eq(UniversityMajor::getUniversityId, universityId)
@@ -180,15 +182,48 @@ public class DataImportServiceImpl implements DataImportService {
     }
 
     private Integer getIntegerCellValue(Row row, int index, DataFormatter formatter) {
-        String text = getStringCellValue(row, index, formatter);
+        if (row == null) {
+            return null;
+        }
+        var cell = row.getCell(index);
+        if (cell == null) {
+            return null;
+        }
+
+        return switch (cell.getCellType()) {
+            case BLANK -> null;
+            case NUMERIC -> (int) Math.round(cell.getNumericCellValue());
+            case STRING -> parseIntegerFromString(cell.getStringCellValue().trim(), index);
+            case FORMULA -> {
+                switch (cell.getCachedFormulaResultType()) {
+                    case NUMERIC -> yield (int) Math.round(cell.getNumericCellValue());
+                    case STRING -> yield parseIntegerFromString(cell.getStringCellValue().trim(), index);
+                    case BLANK -> yield null;
+                    default -> {
+                        String formatted = formatter.formatCellValue(cell).trim();
+                        yield formatted.isEmpty() ? null : parseIntegerFromString(formatted, index);
+                    }
+                }
+            }
+            default -> {
+                String formatted = formatter.formatCellValue(cell).trim();
+                yield formatted.isEmpty() ? null : parseIntegerFromString(formatted, index);
+            }
+        };
+    }
+
+    private Integer parseIntegerFromString(String text, int index) {
         if (text.isEmpty()) {
             return null;
         }
         try {
-            Double value = Double.valueOf(text);
-            return value.intValue();
-        } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException("Invalid numeric value at column " + index + ": " + text, ex);
+            BigDecimal decimal = new BigDecimal(text).stripTrailingZeros();
+            if (decimal.scale() > 0) {
+                throw new NumberFormatException("Non-integer value");
+            }
+            return decimal.intValueExact();
+        } catch (NumberFormatException | ArithmeticException ex) {
+            throw new RuntimeException("Invalid integer value at column " + index + ": '" + text + "'", ex);
         }
     }
 }
