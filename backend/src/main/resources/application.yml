@@ -21,7 +21,7 @@ server:
   port: 8080
 security:
   jwt:
-    secret: change-me-secret-key
+    secret: "Gaokao2025!@#SuperLongJwtSecretKey_123456"
     expiration: 86400000
 
 logging:
