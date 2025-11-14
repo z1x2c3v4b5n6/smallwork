@@ -5,3 +5,4 @@ export const fetchMajorDetail = (universityId: number, majorId: number) =>
   http.get(`/student/universities/${universityId}/majors/${majorId}`)
 export const recommend = (data: { currentRank: number; subjects?: string; province?: string }) =>
   http.post('/student/recommend', data)
+export const fetchStudentProfile = () => http.get('/student/profile')

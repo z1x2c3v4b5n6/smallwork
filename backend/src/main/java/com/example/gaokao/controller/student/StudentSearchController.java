@@ -71,19 +71,28 @@ public class StudentSearchController {
                     .orderByDesc(AdmissionStat::getYear)
                     .last("limit 1")
                     .one();
-            results.add(new MajorSearchResult(
-                    university.getId(),
-                    university.getName(),
-                    university.getProvince(),
-                    major.getId(),
-                    major.getName(),
-                    major.getCategory(),
-                    major.getSubjectReq(),
-                    major.getLevel(),
-                    um.getBatch(),
-                    latest != null ? latest.getMinScore() : null,
-                    latest != null ? latest.getMinRank() : null
-            ));
+            results.add(MajorSearchResult.builder()
+                    .universityId(university.getId())
+                    .universityName(university.getName())
+                    .province(university.getProvince())
+                    .city(university.getCity())
+                    .universityLevel(university.getLevel())
+                    .universityType(university.getType())
+                    .doubleFirstClass(university.getIsDoubleTop())
+                    .universityRemark(university.getRemark())
+                    .majorId(major.getId())
+                    .majorName(major.getName())
+                    .category(major.getCategory())
+                    .subjectReq(major.getSubjectReq())
+                    .discipline(major.getDiscipline())
+                    .level(major.getLevel())
+                    .majorRemark(major.getRemark())
+                    .batch(um.getBatch())
+                    .duration(um.getDuration())
+                    .tuition(um.getTuition())
+                    .latestMinScore(latest != null ? latest.getMinScore() : null)
+                    .latestMinRank(latest != null ? latest.getMinRank() : null)
+                    .build());
         }
         results.sort(Comparator.comparing(MajorSearchResult::getLatestMinRank, Comparator.nullsLast(Integer::compareTo)));
         return results;

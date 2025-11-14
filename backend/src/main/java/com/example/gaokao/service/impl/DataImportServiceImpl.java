@@ -1,8 +1,8 @@
 package com.example.gaokao.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.gaokao.domain.*;
 import com.example.gaokao.service.*;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -35,6 +35,7 @@ public class DataImportServiceImpl implements DataImportService {
     @Transactional
     public int importExcel(MultipartFile file) {
         int count = 0;
+        DataFormatter formatter = new DataFormatter();
         try (InputStream inputStream = file.getInputStream(); Workbook workbook = new XSSFWorkbook(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
             if (sheet.getPhysicalNumberOfRows() <= 1) {
@@ -47,14 +48,19 @@ public class DataImportServiceImpl implements DataImportService {
                 if (row == null) {
                     continue;
                 }
-                String universityName = row.getCell(0).getStringCellValue();
-                String province = row.getCell(1).getStringCellValue();
-                String city = row.getCell(2).getStringCellValue();
-                String level = row.getCell(3).getStringCellValue();
-                String type = row.getCell(4).getStringCellValue();
-                boolean isDoubleTop = "是".equalsIgnoreCase(row.getCell(5).getStringCellValue()) ||
-                        "Y".equalsIgnoreCase(row.getCell(5).getStringCellValue()) ||
-                        "true".equalsIgnoreCase(row.getCell(5).getStringCellValue());
+                String universityName = getStringCellValue(row, 0, formatter);
+                if (universityName.isEmpty()) {
+                    continue;
+                }
+                String province = getStringCellValue(row, 1, formatter);
+                String city = getStringCellValue(row, 2, formatter);
+                String level = getStringCellValue(row, 3, formatter);
+                String type = getStringCellValue(row, 4, formatter);
+                String doubleTopFlag = getStringCellValue(row, 5, formatter).toLowerCase();
+                boolean isDoubleTop = "是".equals(doubleTopFlag) ||
+                        "y".equals(doubleTopFlag) ||
+                        "true".equals(doubleTopFlag) ||
+                        "1".equals(doubleTopFlag);
 
                 Long universityId = universityCache.computeIfAbsent(universityName, name -> {
                     University exist = universityService.lambdaQuery().eq(University::getName, name).one();
@@ -72,11 +78,14 @@ public class DataImportServiceImpl implements DataImportService {
                     return exist.getId();
                 });
 
-                String majorName = row.getCell(6).getStringCellValue();
-                String category = row.getCell(7).getStringCellValue();
-                String discipline = row.getCell(8).getStringCellValue();
-                String subjectReq = row.getCell(9).getStringCellValue();
-                String majorLevel = row.getCell(10).getStringCellValue();
+                String majorName = getStringCellValue(row, 6, formatter);
+                if (majorName.isEmpty()) {
+                    continue;
+                }
+                String category = getStringCellValue(row, 7, formatter);
+                String discipline = getStringCellValue(row, 8, formatter);
+                String subjectReq = getStringCellValue(row, 9, formatter);
+                String majorLevel = getStringCellValue(row, 10, formatter);
 
                 Long majorId = majorCache.computeIfAbsent(majorName, name -> {
                     Major exist = majorService.lambdaQuery().eq(Major::getName, name).one();
@@ -93,15 +102,18 @@ public class DataImportServiceImpl implements DataImportService {
                     return exist.getId();
                 });
 
-                String batch = row.getCell(11).getStringCellValue();
-                int duration = (int) row.getCell(12).getNumericCellValue();
-                int tuition = (int) row.getCell(13).getNumericCellValue();
-                int year = (int) row.getCell(14).getNumericCellValue();
-                int minScore = (int) row.getCell(15).getNumericCellValue();
-                int minRank = (int) row.getCell(16).getNumericCellValue();
-                int avgScore = (int) row.getCell(17).getNumericCellValue();
-                int avgRank = (int) row.getCell(18).getNumericCellValue();
-                int admitCount = (int) row.getCell(19).getNumericCellValue();
+                String batch = getStringCellValue(row, 11, formatter);
+                Integer duration = getIntegerCellValue(row, 12, formatter);
+                Integer tuition = getIntegerCellValue(row, 13, formatter);
+                Integer year = getIntegerCellValue(row, 14, formatter);
+                if (year == null) {
+                    continue;
+                }
+                Integer minScore = getIntegerCellValue(row, 15, formatter);
+                Integer minRank = getIntegerCellValue(row, 16, formatter);
+                Integer avgScore = getIntegerCellValue(row, 17, formatter);
+                Integer avgRank = getIntegerCellValue(row, 18, formatter);
+                Integer admitCount = getIntegerCellValue(row, 19, formatter);
 
                 UniversityMajor universityMajor = universityMajorService.lambdaQuery()
                         .eq(UniversityMajor::getUniversityId, universityId)
@@ -154,5 +166,29 @@ public class DataImportServiceImpl implements DataImportService {
             throw new RuntimeException("Failed to import Excel: " + e.getMessage(), e);
         }
         return count;
+    }
+
+    private String getStringCellValue(Row row, int index, DataFormatter formatter) {
+        if (row == null) {
+            return "";
+        }
+        var cell = row.getCell(index);
+        if (cell == null) {
+            return "";
+        }
+        return formatter.formatCellValue(cell).trim();
+    }
+
+    private Integer getIntegerCellValue(Row row, int index, DataFormatter formatter) {
+        String text = getStringCellValue(row, index, formatter);
+        if (text.isEmpty()) {
+            return null;
+        }
+        try {
+            Double value = Double.valueOf(text);
+            return value.intValue();
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("Invalid numeric value at column " + index + ": " + text, ex);
+        }
     }
 }
