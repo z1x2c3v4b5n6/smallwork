@@ -33,9 +33,9 @@ public class RecommendController {
         List<MajorSearchResult> safe = new ArrayList<>();
         for (MajorSearchResult item : all) {
             int diff = request.getCurrentRank() - item.getLatestMinRank();
-            if (diff < -200) {
+            if (diff > 200) {
                 rush.add(item);
-            } else if (diff <= 200) {
+            } else if (Math.abs(diff) <= 200) {
                 match.add(item);
             } else {
                 safe.add(item);
