@@ -86,8 +86,9 @@ public class DataImportServiceImpl implements DataImportService {
                 }
                 String category = getStringCellValue(row, 3, formatter);
                 String discipline = getStringCellValue(row, 9, formatter);
-                String subjectReq = getStringCellValue(row, 12, formatter);
+                String subjectReq = "";
                 String majorLevel = getStringCellValue(row, 10, formatter);
+                String majorRemark = getStringCellValue(row, 12, formatter);
 
                 Long majorId = majorCache.computeIfAbsent(majorName, name -> {
                     Major exist = majorService.lambdaQuery().eq(Major::getName, name).one();
@@ -98,8 +99,33 @@ public class DataImportServiceImpl implements DataImportService {
                         major.setDiscipline(discipline);
                         major.setSubjectReq(subjectReq);
                         major.setLevel(majorLevel);
+                        major.setRemark(majorRemark);
                         majorService.save(major);
                         return major.getId();
+                    }
+                    boolean updated = false;
+                    if (!category.isEmpty() && !category.equals(exist.getCategory())) {
+                        exist.setCategory(category);
+                        updated = true;
+                    }
+                    if (!discipline.isEmpty() && !discipline.equals(exist.getDiscipline())) {
+                        exist.setDiscipline(discipline);
+                        updated = true;
+                    }
+                    if (!subjectReq.isEmpty() && !subjectReq.equals(exist.getSubjectReq())) {
+                        exist.setSubjectReq(subjectReq);
+                        updated = true;
+                    }
+                    if (!majorLevel.isEmpty() && !majorLevel.equals(exist.getLevel())) {
+                        exist.setLevel(majorLevel);
+                        updated = true;
+                    }
+                    if (!majorRemark.isEmpty() && !majorRemark.equals(exist.getRemark())) {
+                        exist.setRemark(majorRemark);
+                        updated = true;
+                    }
+                    if (updated) {
+                        majorService.updateById(exist);
                     }
                     return exist.getId();
                 });
@@ -223,7 +249,7 @@ public class DataImportServiceImpl implements DataImportService {
             }
             return decimal.intValueExact();
         } catch (NumberFormatException | ArithmeticException ex) {
-            throw new RuntimeException("Invalid integer value at column " + index + ": '" + text + "'", ex);
+            throw new RuntimeException("无法解析第 " + (index + 1) + " 列的整数值：'" + text + "'", ex);
         }
     }
 }
