@@ -1,3 +1,12 @@
+DROP TABLE IF EXISTS plan_item;
+DROP TABLE IF EXISTS plan;
+DROP TABLE IF EXISTS admission_stat;
+DROP TABLE IF EXISTS university_major;
+DROP TABLE IF EXISTS student_profile;
+DROP TABLE IF EXISTS major;
+DROP TABLE IF EXISTS university;
+DROP TABLE IF EXISTS user;
+
 CREATE TABLE IF NOT EXISTS user (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(50) NOT NULL UNIQUE,
@@ -28,9 +37,7 @@ CREATE TABLE IF NOT EXISTS university (
     is_double_top TINYINT(1) DEFAULT 0,
     remark VARCHAR(255)
 );
-DROP INDEX IF EXISTS idx_university_name ON university;
 CREATE INDEX idx_university_name ON university(name);
-DROP INDEX IF EXISTS idx_university_province ON university;
 CREATE INDEX idx_university_province ON university(province);
 
 CREATE TABLE IF NOT EXISTS major (
@@ -42,7 +49,6 @@ CREATE TABLE IF NOT EXISTS major (
     level VARCHAR(50),
     remark VARCHAR(255)
 );
-DROP INDEX IF EXISTS idx_major_name ON major;
 CREATE INDEX idx_major_name ON major(name);
 
 CREATE TABLE IF NOT EXISTS university_major (
@@ -56,11 +62,8 @@ CREATE TABLE IF NOT EXISTS university_major (
     CONSTRAINT fk_um_university FOREIGN KEY (university_id) REFERENCES university(id) ON DELETE CASCADE,
     CONSTRAINT fk_um_major FOREIGN KEY (major_id) REFERENCES major(id) ON DELETE CASCADE
 );
-DROP INDEX IF EXISTS idx_um_university ON university_major;
 CREATE INDEX idx_um_university ON university_major(university_id);
-DROP INDEX IF EXISTS idx_um_major ON university_major;
 CREATE INDEX idx_um_major ON university_major(major_id);
-DROP INDEX IF EXISTS idx_um_unique ON university_major;
 CREATE UNIQUE INDEX idx_um_unique ON university_major(university_id, major_id, batch);
 
 CREATE TABLE IF NOT EXISTS admission_stat (
@@ -77,7 +80,6 @@ CREATE TABLE IF NOT EXISTS admission_stat (
     CONSTRAINT fk_stat_university FOREIGN KEY (university_id) REFERENCES university(id) ON DELETE CASCADE,
     CONSTRAINT fk_stat_major FOREIGN KEY (major_id) REFERENCES major(id) ON DELETE CASCADE
 );
-DROP INDEX IF EXISTS idx_stat_university_major_year ON admission_stat;
 CREATE INDEX idx_stat_university_major_year ON admission_stat(university_id, major_id, year);
 
 CREATE TABLE IF NOT EXISTS plan (
@@ -87,7 +89,6 @@ CREATE TABLE IF NOT EXISTS plan (
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_plan_user FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
 );
-DROP INDEX IF EXISTS idx_plan_user ON plan;
 CREATE INDEX idx_plan_user ON plan(user_id);
 
 CREATE TABLE IF NOT EXISTS plan_item (
@@ -101,12 +102,11 @@ CREATE TABLE IF NOT EXISTS plan_item (
     CONSTRAINT fk_plan_item_university FOREIGN KEY (university_id) REFERENCES university(id) ON DELETE CASCADE,
     CONSTRAINT fk_plan_item_major FOREIGN KEY (major_id) REFERENCES major(id) ON DELETE CASCADE
 );
-DROP INDEX IF EXISTS idx_plan_item_plan ON plan_item;
 CREATE INDEX idx_plan_item_plan ON plan_item(plan_id);
 
 INSERT INTO user (username, password, role) VALUES
-    ('admin', '$2a$10$Dow1k08LomqKgJo0vvArkOG5vW7/dwZ0pniS3pSke1Mt2rt7NmBG6', 'ROLE_ADMIN'),
-    ('student', '$2a$10$Dow1k08LomqKgJo0vvArkOG5vW7/dwZ0pniS3pSke1Mt2rt7NmBG6', 'ROLE_STUDENT')
+    ('admin', '123456', 'ROLE_ADMIN'),
+    ('student', '123456', 'ROLE_STUDENT')
 ON DUPLICATE KEY UPDATE username = VALUES(username);
 
 INSERT INTO student_profile (user_id, real_name, score, `rank`, subjects, province) VALUES
