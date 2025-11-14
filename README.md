@@ -37,8 +37,8 @@
 ## 前端运行
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 默认前端访问地址为 `http://localhost:5173`，已通过 Vite 代理将 `/api` 请求转发至后端。
 
