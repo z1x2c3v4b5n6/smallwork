@@ -25,7 +25,15 @@
               <el-input v-model="form.province" placeholder="高考所在省份" />
             </el-form-item>
             <el-form-item label="选考科目">
-              <el-input v-model="form.subjects" placeholder="如 物理 化学" />
+              <el-select
+                v-model="subjectSelection"
+                multiple
+                filterable
+                collapse-tags
+                placeholder="请选择科目组合"
+              >
+                <el-option v-for="subject in subjectOptions" :key="subject" :label="subject" :value="subject" />
+              </el-select>
             </el-form-item>
           </div>
           <div class="profile-form__row">
@@ -53,7 +61,23 @@
             </el-form-item>
           </div>
           <el-form-item label="目标专业方向">
-            <el-input v-model="form.targetMajorType" type="textarea" placeholder="例如 计算机类 / 金融学 / 师范类" />
+            <el-select
+              v-model="form.targetMajorType"
+              filterable
+              remote
+              reserve-keyword
+              clearable
+              placeholder="选择或搜索目标专业"
+              :remote-method="loadMajorOptions"
+              :loading="majorLoading"
+            >
+              <el-option
+                v-for="major in majorOptions"
+                :key="major.id"
+                :label="major.name"
+                :value="major.name"
+              />
+            </el-select>
           </el-form-item>
         </el-form>
       </el-card>
@@ -90,10 +114,12 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { fetchStudentProfile, updateStudentProfile, fetchProfileSummary } from '../../api/student'
+import { SUBJECT_OPTIONS, parseSubjectString, stringifySubjects } from '../../constants/subjects'
+import { useMajorOptions } from '../../composables/useMajorOptions'
 
 const router = useRouter()
 
@@ -111,15 +137,23 @@ const form = reactive({
   targetMajorType: ''
 })
 
+const subjectOptions = SUBJECT_OPTIONS
+const subjectSelection = ref<string[]>([])
+const { majorOptions, majorLoading, loadMajorOptions } = useMajorOptions()
 const saving = ref(false)
 const summary = ref({ ready: false, rushCount: 0, matchCount: 0, safeCount: 0 })
 const summaryLoading = ref(false)
+
+watch(subjectSelection, (value) => {
+  form.subjects = stringifySubjects(value)
+})
 
 const loadProfile = async () => {
   try {
     const { data } = await fetchStudentProfile()
     if (data) {
       Object.assign(form, data)
+      subjectSelection.value = parseSubjectString(data.subjects)
     }
   } catch (err) {
     console.warn('加载档案失败', err)
@@ -156,6 +190,7 @@ const goRecommend = () => router.push('/student/recommend')
 onMounted(() => {
   loadProfile()
   refreshSummary()
+  loadMajorOptions()
 })
 </script>
 
@@ -194,6 +229,10 @@ onMounted(() => {
 }
 
 .profile-form :deep(.el-input-number) {
+  width: 100%;
+}
+
+.profile-form :deep(.el-select) {
   width: 100%;
 }
 

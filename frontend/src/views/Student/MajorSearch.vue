@@ -57,7 +57,23 @@
           <el-input v-model="filters.universityName" placeholder="如 北京大学" clearable />
         </el-form-item>
         <el-form-item label="专业名称">
-          <el-input v-model="filters.majorName" placeholder="如 计算机科学与技术" clearable />
+          <el-select
+            v-model="filters.majorName"
+            filterable
+            remote
+            reserve-keyword
+            clearable
+            placeholder="选择或搜索专业"
+            :remote-method="loadMajorOptions"
+            :loading="majorLoading"
+          >
+            <el-option
+              v-for="major in majorOptions"
+              :key="major.id"
+              :label="major.name"
+              :value="major.name"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="省份">
           <el-input v-model="filters.province" placeholder="报考省份" clearable />
@@ -406,6 +422,7 @@ import {
 } from '@element-plus/icons-vue'
 import { fetchMajorDetail, fetchStudentProfile, searchMajors } from '../../api/student'
 import { addPlanItem, listPlans } from '../../api/plan'
+import { useMajorOptions } from '../../composables/useMajorOptions'
 
 interface Profile {
   score?: number | null
@@ -469,6 +486,7 @@ const filters = reactive({
   level: ''
 })
 
+const { majorOptions, majorLoading, loadMajorOptions } = useMajorOptions()
 const loading = ref(false)
 const results = ref<MajorResult[]>([])
 const detailData = ref<AdmissionStat[]>([])
@@ -859,6 +877,7 @@ onMounted(() => {
   loadProfile()
   loadPlans()
   loadData()
+  loadMajorOptions()
 })
 </script>
 

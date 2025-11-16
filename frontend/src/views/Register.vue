@@ -27,7 +27,15 @@
             <el-input v-model="form.province" placeholder="如 浙江" />
           </el-form-item>
           <el-form-item label="选考科目">
-            <el-input v-model="form.subjects" placeholder="如 物理 化学" />
+            <el-select
+              v-model="subjectSelection"
+              multiple
+              filterable
+              collapse-tags
+              placeholder="请选择科目组合"
+            >
+              <el-option v-for="subject in subjectOptions" :key="subject" :label="subject" :value="subject" />
+            </el-select>
           </el-form-item>
         </div>
         <div class="auth-form__grid">
@@ -39,7 +47,23 @@
           </el-form-item>
         </div>
         <el-form-item label="目标专业方向">
-          <el-input v-model="form.targetMajorType" placeholder="如 计算机类 / 教育类" />
+          <el-select
+            v-model="form.targetMajorType"
+            filterable
+            remote
+            reserve-keyword
+            clearable
+            placeholder="选择或搜索目标专业"
+            :remote-method="loadMajorOptions"
+            :loading="majorLoading"
+          >
+            <el-option
+              v-for="major in majorOptions"
+              :key="major.id"
+              :label="major.name"
+              :value="major.name"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :loading="loading" @click="handleRegister">立即注册</el-button>
@@ -51,11 +75,13 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { register } from '../api/auth'
 import { useAuthStore } from '../store/auth'
+import { SUBJECT_OPTIONS, stringifySubjects } from '../constants/subjects'
+import { useMajorOptions } from '../composables/useMajorOptions'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -73,6 +99,9 @@ const form = reactive({
   targetMajorType: ''
 })
 
+const subjectOptions = SUBJECT_OPTIONS
+const subjectSelection = ref<string[]>([])
+const { majorOptions, majorLoading, loadMajorOptions } = useMajorOptions()
 const loading = ref(false)
 
 const handleRegister = async () => {
@@ -86,7 +115,7 @@ const handleRegister = async () => {
   }
   loading.value = true
   try {
-    const payload = { ...form }
+    const payload = { ...form, subjects: stringifySubjects(subjectSelection.value) }
     const { data } = await register(payload)
     auth.setUser({ username: data.username, role: data.role, token: data.token })
     ElMessage.success('注册成功，已自动登录')
@@ -99,6 +128,10 @@ const handleRegister = async () => {
 }
 
 const goLogin = () => router.push('/login')
+
+onMounted(() => {
+  loadMajorOptions()
+})
 </script>
 
 <style scoped>
@@ -127,6 +160,10 @@ const goLogin = () => router.push('/login')
 }
 
 .auth-form :deep(.el-input-number) {
+  width: 100%;
+}
+
+.auth-form :deep(.el-select) {
   width: 100%;
 }
 </style>

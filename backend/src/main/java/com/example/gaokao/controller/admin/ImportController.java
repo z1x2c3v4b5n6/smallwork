@@ -1,5 +1,6 @@
 package com.example.gaokao.controller.admin;
 
+import com.example.gaokao.domain.dto.ImportResult;
 import com.example.gaokao.service.DataImportService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -7,9 +8,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/import")
@@ -22,21 +20,15 @@ public class ImportController {
     }
 
     @PostMapping("/excel")
-    public ResponseEntity<Map<String, Object>> importExcel(@RequestParam("file") MultipartFile file) {
-        int count = dataImportService.importExcel(file);
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("count", count);
+    public ResponseEntity<ImportResult> importExcel(@RequestParam("file") MultipartFile file) {
+        ImportResult result = dataImportService.importExcel(file);
         return ResponseEntity.ok(result);
     }
 
     @PostMapping("/students")
-    public ResponseEntity<Map<String, Object>> importStudents(@RequestParam("file") MultipartFile file,
-                                                              @RequestParam(value = "strategy", defaultValue = "overwrite") String strategy) {
-        int count = dataImportService.importStudentProfiles(file, strategy);
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("count", count);
+    public ResponseEntity<ImportResult> importStudents(@RequestParam("file") MultipartFile file,
+                                                       @RequestParam(value = "strategy", defaultValue = "overwrite") String strategy) {
+        ImportResult result = dataImportService.importStudentProfiles(file, strategy);
         return ResponseEntity.ok(result);
     }
 }

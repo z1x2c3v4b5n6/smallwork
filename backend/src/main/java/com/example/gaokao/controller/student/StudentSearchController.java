@@ -4,6 +4,7 @@ import com.example.gaokao.domain.AdmissionStat;
 import com.example.gaokao.domain.Major;
 import com.example.gaokao.domain.University;
 import com.example.gaokao.domain.UniversityMajor;
+import com.example.gaokao.domain.dto.MajorOptionResponse;
 import com.example.gaokao.domain.dto.MajorSearchResult;
 import com.example.gaokao.service.AdmissionStatService;
 import com.example.gaokao.service.MajorService;
@@ -105,5 +106,19 @@ public class StudentSearchController {
                 .eq(AdmissionStat::getMajorId, majorId)
                 .orderByDesc(AdmissionStat::getYear)
                 .list();
+    }
+
+    @GetMapping("/majors/options")
+    public List<MajorOptionResponse> majorOptions(@RequestParam(required = false) String keyword,
+                                                  @RequestParam(value = "limit", defaultValue = "20") int limit) {
+        int size = Math.min(Math.max(limit, 1), 100);
+        return majorService.lambdaQuery()
+                .like(keyword != null && !keyword.isBlank(), Major::getName, keyword)
+                .orderByAsc(Major::getName)
+                .last("limit " + size)
+                .list()
+                .stream()
+                .map(major -> new MajorOptionResponse(major.getId(), major.getName()))
+                .collect(Collectors.toList());
     }
 }

@@ -48,6 +48,26 @@
         </el-tab-pane>
       </el-tabs>
     </el-card>
+    <el-dialog v-model="errorDialogVisible" :title="errorDialogTitle" width="720px">
+      <el-alert
+        type="error"
+        :closable="false"
+        title="发现无法解析的数字字段"
+        description="请根据以下列表定位 Excel 中的行列，修正后重新导入。"
+        class="error-dialog__alert"
+      />
+      <el-table :data="errorDetails" size="small" border class="error-dialog__table">
+        <el-table-column prop="row" label="行" width="80" />
+        <el-table-column prop="column" label="列" width="80" />
+        <el-table-column prop="field" label="字段" width="160" />
+        <el-table-column prop="message" label="错误信息" />
+      </el-table>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="errorDialogVisible = false">我知道了</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -57,12 +77,40 @@ import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import { importMajorExcel, importStudentExcel } from '../../api/admin'
 
+interface ImportErrorItem {
+  row: number
+  column: string
+  field: string
+  message: string
+  value?: string
+}
+
 const activeTab = ref('major')
 const majorFiles = ref<any[]>([])
 const studentFiles = ref<any[]>([])
 const studentStrategy = ref('overwrite')
 const loadingMajor = ref(false)
 const loadingStudent = ref(false)
+const errorDialogVisible = ref(false)
+const errorDialogTitle = ref('导入错误')
+const errorDetails = ref<ImportErrorItem[]>([])
+
+const showImportFeedback = (data: any, contextLabel: string, successText: string) => {
+  if (data.success) {
+    ElMessage.success(successText)
+  } else {
+    const errorCount = data.errors?.length || 0
+    const tip = data.count
+      ? `${contextLabel}导入完成，但发现 ${errorCount} 处格式错误`
+      : `${contextLabel}导入失败，请查看错误详情`
+    ElMessage.warning(tip)
+  }
+  if (data.errors && data.errors.length) {
+    errorDialogTitle.value = `${contextLabel}导入错误明细`
+    errorDetails.value = data.errors
+    errorDialogVisible.value = true
+  }
+}
 
 const handleMajorUpload = async () => {
   if (!majorFiles.value.length) {
@@ -73,7 +121,7 @@ const handleMajorUpload = async () => {
   loadingMajor.value = true
   try {
     const { data } = await importMajorExcel(file)
-    ElMessage.success(`导入成功，共 ${data.count} 条记录`)
+    showImportFeedback(data, '院校/专业数据', `导入成功，共 ${data.count} 条记录`)
     majorFiles.value = []
   } catch (err: any) {
     ElMessage.error(err?.response?.data?.message || '导入失败')
@@ -91,7 +139,7 @@ const handleStudentUpload = async () => {
   loadingStudent.value = true
   try {
     const { data } = await importStudentExcel(file, studentStrategy.value)
-    ElMessage.success(`导入成功，共 ${data.count} 名学生`)
+    showImportFeedback(data, '学生档案', `导入成功，共 ${data.count} 名学生`)
     studentFiles.value = []
   } catch (err: any) {
     ElMessage.error(err?.response?.data?.message || '导入失败')
@@ -118,5 +166,14 @@ const handleStudentUpload = async () => {
 
 .strategy-form {
   margin-top: 12px;
+}
+
+.error-dialog__alert {
+  margin-bottom: 16px;
+}
+
+.error-dialog__table {
+  max-height: 360px;
+  overflow-y: auto;
 }
 </style>
