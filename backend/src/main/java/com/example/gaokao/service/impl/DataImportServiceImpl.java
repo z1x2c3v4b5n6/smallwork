@@ -43,7 +43,10 @@ public class DataImportServiceImpl implements DataImportService {
         MAJOR_FIELD_HEADER_ALIASES.put("type", Arrays.asList("科类", "文理科", "选科要求", "选考科目"));
         MAJOR_FIELD_HEADER_ALIASES.put("batch", Arrays.asList("批次", "录取批次", "招生批次", "录取批次名称"));
         MAJOR_FIELD_HEADER_ALIASES.put("doubleTop", Arrays.asList("是否双一流", "双一流", "双一流标识", "是否985", "是否211"));
-        MAJOR_FIELD_HEADER_ALIASES.put("universityName", Arrays.asList("院校名称", "学校名称", "高校名称"));
+        MAJOR_FIELD_HEADER_ALIASES.put("universityName", Arrays.asList(
+                "院校名称", "学校名称", "高校名称",
+                "院校", "院校名", "学校", "学校名",
+                "高校", "招生院校", "招生学校", "报考院校"));
         MAJOR_FIELD_HEADER_ALIASES.put("category", Arrays.asList("专业类别", "专业类", "类别", "科类", "学科门类"));
         MAJOR_FIELD_HEADER_ALIASES.put("discipline", Arrays.asList("专业方向", "方向", "学科门类"));
         MAJOR_FIELD_HEADER_ALIASES.put("majorLevel", Arrays.asList("专业全称", "层次", "专业层次", "培养层次"));
