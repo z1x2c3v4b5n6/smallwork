@@ -1,19 +1,22 @@
 <template>
-  <div class="page-container">
-    <el-card>
+  <div class="plan-page">
+    <el-card class="plan-card" shadow="hover">
       <template #header>
-        <div class="header">
-          <span>志愿方案管理</span>
-          <el-button type="primary" @click="goSearch">返回检索</el-button>
+        <div class="plan-card__header">
+          <div>
+            <h2>我的志愿方案</h2>
+            <p>在检索与推荐页面挑选志愿后，可快速归档到不同方案中便于对比。</p>
+          </div>
+          <div class="plan-card__header-actions">
+            <el-input v-model="planName" placeholder="输入方案名称" style="width: 220px" />
+            <el-button type="primary" :loading="creating" @click="create">创建方案</el-button>
+            <el-button @click="goSearch">去检索添加志愿</el-button>
+          </div>
         </div>
       </template>
-      <div class="actions">
-        <el-input v-model="planName" placeholder="新方案名称" style="width: 240px" />
-        <el-button type="primary" @click="create">创建方案</el-button>
-      </div>
-      <el-table :data="plans" style="width: 100%">
-        <el-table-column prop="name" label="方案名称" />
-        <el-table-column prop="createTime" label="创建时间" />
+      <el-table :data="plans" stripe empty-text="暂未创建方案" style="width: 100%">
+        <el-table-column prop="name" label="方案名称" min-width="160" />
+        <el-table-column prop="createTime" label="创建时间" min-width="180" />
         <el-table-column label="操作" width="220">
           <template #default="{ row }">
             <el-button link type="primary" @click="openPlan(row)">查看志愿</el-button>
@@ -23,22 +26,32 @@
       </el-table>
     </el-card>
 
-    <el-drawer v-model="drawer" :title="currentPlan?.name" size="50%">
-      <div class="drawer-actions">
-        <el-input v-model.number="newItem.orderNo" placeholder="顺序" type="number" style="width: 90px" />
-        <el-input v-model="newItem.universityId" placeholder="院校ID" style="width: 120px" />
-        <el-input v-model="newItem.majorId" placeholder="专业ID" style="width: 120px" />
-        <el-input v-model="newItem.batch" placeholder="批次" style="width: 120px" />
-        <el-button type="primary" @click="addItem">添加志愿</el-button>
-      </div>
-      <el-table :data="planItems" style="width: 100%">
+    <el-drawer v-model="drawer" :title="currentPlan?.name || '志愿列表'" size="60%">
+      <el-alert type="info" show-icon class="plan-tip" :closable="false">
+        请在“志愿检索”或“位次推荐”页面选择心仪志愿后，点击“加入方案”按钮即可同步到此处。
+      </el-alert>
+      <el-table :data="planItems" v-loading="itemsLoading" empty-text="尚未添加志愿">
         <el-table-column prop="orderNo" label="顺序" width="80" />
-        <el-table-column prop="universityId" label="院校ID" />
-        <el-table-column prop="majorId" label="专业ID" />
-        <el-table-column prop="batch" label="批次" />
+        <el-table-column label="院校/专业">
+          <template #default="{ row }">
+            <div class="plan-item__title">{{ row.universityName }}</div>
+            <div class="plan-item__subtitle">{{ row.majorName }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="batch" label="批次" width="140" />
+        <el-table-column prop="latestMinRank" label="近一年最低位次" width="160">
+          <template #default="{ row }">
+            {{ row.latestMinRank ? row.latestMinRank.toLocaleString() : '--' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="风险评估" width="140">
+          <template #default="{ row }">
+            <el-tag :type="row.riskType" effect="dark" round>{{ row.riskLabel }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="120">
           <template #default="{ row }">
-            <el-button link type="danger" @click="deleteItem(row)">删除</el-button>
+            <el-button link type="danger" @click="deleteItem(row)">移除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -50,21 +63,17 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listPlans, createPlan, deletePlan, listPlanItems, addPlanItem, deletePlanItem } from '../../api/plan'
+import { listPlans, createPlan, deletePlan, listPlanItems, deletePlanItem } from '../../api/plan'
 
 const router = useRouter()
 
 const plans = ref<any[]>([])
 const planName = ref('')
+const creating = ref(false)
 const drawer = ref(false)
 const planItems = ref<any[]>([])
 const currentPlan = ref<any>(null)
-const newItem = ref({
-  orderNo: 1,
-  universityId: '',
-  majorId: '',
-  batch: ''
-})
+const itemsLoading = ref(false)
 
 const loadPlans = async () => {
   const { data } = await listPlans()
@@ -76,18 +85,25 @@ const create = async () => {
     ElMessage.warning('请输入方案名称')
     return
   }
-  await createPlan({ name: planName.value })
-  ElMessage.success('创建成功')
-  planName.value = ''
-  loadPlans()
+  creating.value = true
+  try {
+    await createPlan({ name: planName.value })
+    ElMessage.success('创建成功')
+    planName.value = ''
+    loadPlans()
+  } finally {
+    creating.value = false
+  }
 }
 
 const removePlan = (row: any) => {
-  ElMessageBox.confirm(`确定删除方案「${row.name}」吗？`, '提示', {
-    type: 'warning'
-  }).then(async () => {
+  ElMessageBox.confirm(`确定删除方案「${row.name}」吗？`, '提示', { type: 'warning' }).then(async () => {
     await deletePlan(row.id)
     ElMessage.success('删除成功')
+    if (currentPlan.value?.id === row.id) {
+      drawer.value = false
+      planItems.value = []
+    }
     loadPlans()
   })
 }
@@ -95,23 +111,25 @@ const removePlan = (row: any) => {
 const openPlan = async (row: any) => {
   currentPlan.value = row
   drawer.value = true
-  const { data } = await listPlanItems(row.id)
-  planItems.value = data
+  await loadPlanItems()
 }
 
-const addItem = async () => {
+const loadPlanItems = async () => {
   if (!currentPlan.value) return
-  await addPlanItem(currentPlan.value.id, newItem.value)
-  ElMessage.success('添加成功')
-  const { data } = await listPlanItems(currentPlan.value.id)
-  planItems.value = data
+  itemsLoading.value = true
+  try {
+    const { data } = await listPlanItems(currentPlan.value.id)
+    planItems.value = data
+  } finally {
+    itemsLoading.value = false
+  }
 }
 
 const deleteItem = async (row: any) => {
   if (!currentPlan.value) return
   await deletePlanItem(currentPlan.value.id, row.id)
-  ElMessage.success('删除成功')
-  planItems.value = planItems.value.filter((item) => item.id !== row.id)
+  ElMessage.success('已移除该志愿')
+  loadPlanItems()
 }
 
 const goSearch = () => router.push('/student/search')
@@ -120,25 +138,46 @@ onMounted(loadPlans)
 </script>
 
 <style scoped>
-.page-container {
-  padding: 24px;
+.plan-page {
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
-.header {
+.plan-card__header {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 16px;
+}
+
+.plan-card__header h2 {
+  margin: 0 0 4px;
+}
+
+.plan-card__header p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.plan-card__header-actions {
+  display: flex;
+  gap: 12px;
   align-items: center;
 }
 
-.actions {
+.plan-tip {
   margin-bottom: 16px;
-  display: flex;
-  gap: 12px;
 }
 
-.drawer-actions {
-  margin-bottom: 16px;
-  display: flex;
-  gap: 12px;
+.plan-item__title {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.plan-item__subtitle {
+  color: #6b7280;
+  font-size: 13px;
 }
 </style>

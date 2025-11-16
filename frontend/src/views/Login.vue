@@ -11,6 +11,7 @@
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :loading="loading" @click="handleLogin">登录</el-button>
+          <el-button link type="primary" @click="goRegister">没有账号？前往注册</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -28,8 +29,8 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const form = reactive({
-  username: 'student',
-  password: '123456'
+  username: '',
+  password: ''
 })
 const loading = ref(false)
 
@@ -54,6 +55,8 @@ const handleLogin = async () => {
     loading.value = false
   }
 }
+
+const goRegister = () => router.push('/register')
 </script>
 
 <style scoped>

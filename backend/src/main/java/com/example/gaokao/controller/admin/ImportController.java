@@ -29,4 +29,14 @@ public class ImportController {
         result.put("count", count);
         return ResponseEntity.ok(result);
     }
+
+    @PostMapping("/students")
+    public ResponseEntity<Map<String, Object>> importStudents(@RequestParam("file") MultipartFile file,
+                                                              @RequestParam(value = "strategy", defaultValue = "overwrite") String strategy) {
+        int count = dataImportService.importStudentProfiles(file, strategy);
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("count", count);
+        return ResponseEntity.ok(result);
+    }
 }

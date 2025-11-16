@@ -40,9 +40,12 @@ const route = useRoute()
 const auth = useAuthStore()
 
 const baseNavItems = [
+  { label: '个人中心', path: '/student/profile', roles: ['ROLE_STUDENT', 'ROLE_ADMIN'] },
   { label: '志愿检索', path: '/student/search', roles: ['ROLE_STUDENT', 'ROLE_ADMIN'] },
   { label: '位次推荐', path: '/student/recommend', roles: ['ROLE_STUDENT', 'ROLE_ADMIN'] },
   { label: '志愿方案', path: '/student/plans', roles: ['ROLE_STUDENT', 'ROLE_ADMIN'] },
+  { label: '学生管理', path: '/admin/students', roles: ['ROLE_ADMIN'] },
+  { label: '推荐规则', path: '/admin/rules', roles: ['ROLE_ADMIN'] },
   { label: '数据导入（管理员）', path: '/admin/import', roles: ['ROLE_ADMIN'] }
 ]
 
