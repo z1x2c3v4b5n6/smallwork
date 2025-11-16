@@ -5,6 +5,7 @@ DROP TABLE IF EXISTS university_major;
 DROP TABLE IF EXISTS student_profile;
 DROP TABLE IF EXISTS major;
 DROP TABLE IF EXISTS university;
+DROP TABLE IF EXISTS recommend_rule;
 DROP TABLE IF EXISTS user;
 
 CREATE TABLE IF NOT EXISTS user (
@@ -12,19 +13,35 @@ CREATE TABLE IF NOT EXISTS user (
     username VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(100) NOT NULL,
     role VARCHAR(50) NOT NULL,
+    enabled TINYINT(1) DEFAULT 1,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    last_login_time DATETIME
 );
 
 CREATE TABLE IF NOT EXISTS student_profile (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
     real_name VARCHAR(50),
+    nickname VARCHAR(50),
     score INT,
     `rank` INT,
+    first_mock_score INT,
+    first_mock_rank INT,
+    second_mock_score INT,
+    second_mock_rank INT,
     subjects VARCHAR(100),
     province VARCHAR(50),
+    target_major_type VARCHAR(100),
     CONSTRAINT fk_student_user FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS recommend_rule (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    rush_offset INT DEFAULT 200,
+    match_offset INT DEFAULT 200,
+    safe_offset INT DEFAULT 200,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS university (
@@ -112,6 +129,10 @@ ON DUPLICATE KEY UPDATE username = VALUES(username);
 INSERT INTO student_profile (user_id, real_name, score, `rank`, subjects, province) VALUES
     ((SELECT id FROM user WHERE username='student'), '张三', 620, 5000, '物理 化学', '浙江')
 ON DUPLICATE KEY UPDATE real_name = VALUES(real_name);
+
+INSERT INTO recommend_rule (id, rush_offset, match_offset, safe_offset)
+VALUES (1, 200, 200, 200)
+ON DUPLICATE KEY UPDATE rush_offset = VALUES(rush_offset);
 
 INSERT INTO university (name, province, city, level, type, is_double_top, remark) VALUES
     ('浙江大学', '浙江', '杭州', '985', '综合', 1, '双一流A类院校'),

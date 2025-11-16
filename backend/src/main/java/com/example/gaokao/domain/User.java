@@ -16,8 +16,11 @@ public class User {
     private String username;
     private String password;
     private String role;
+    private Boolean enabled;
     @TableField("create_time")
     private LocalDateTime createTime;
     @TableField("update_time")
     private LocalDateTime updateTime;
+    @TableField("last_login_time")
+    private LocalDateTime lastLoginTime;
 }

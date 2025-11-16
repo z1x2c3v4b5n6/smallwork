@@ -11,7 +11,7 @@ import { useRoute } from 'vue-router'
 import GlobalNav from './components/GlobalNav.vue'
 
 const route = useRoute()
-const hideNavRoutes = ['/login']
+const hideNavRoutes = ['/login', '/register']
 
 const showNav = computed(() => !hideNavRoutes.includes(route.path))
 </script>

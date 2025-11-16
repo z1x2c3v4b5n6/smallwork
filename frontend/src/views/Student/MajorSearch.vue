@@ -10,6 +10,7 @@
         <div class="hero__actions">
           <el-button type="primary" :icon="Compass" @click="goRecommend">按位次智能推荐</el-button>
           <el-button plain :icon="Notebook" @click="goPlans">我的志愿方案</el-button>
+          <el-button link type="success" @click="goProfile">完善个人信息</el-button>
         </div>
         <div class="hero__profile" :class="{ 'hero__profile--empty': !profile }">
           <div class="hero__profile-item">
@@ -24,7 +25,9 @@
             <span class="hero__profile-label">科目组合</span>
             <span class="hero__profile-value">{{ profile?.subjects || '待完善' }}</span>
           </div>
-          <p class="hero__profile-tip" v-if="!profile">尚未获取到个人成绩信息，请联系管理员完善学生档案。</p>
+          <p class="hero__profile-tip" v-if="!profile">
+            尚未获取到个人成绩信息，<el-button link type="primary" @click="goProfile">点击完善个人档案</el-button>
+          </p>
         </div>
       </div>
       <div class="hero__stats">
@@ -836,6 +839,7 @@ const confirmAddToPlan = async () => {
 
 const goRecommend = () => router.push('/student/recommend')
 const goPlans = () => router.push('/student/plans')
+const goProfile = () => router.push('/student/profile')
 
 watch(planDialogVisible, (visible) => {
   if (!visible) {
