@@ -44,7 +44,8 @@ public class DataImportServiceImpl implements DataImportService {
             }
             Map<String, Long> universityCache = new HashMap<>();
             Map<String, Long> majorCache = new HashMap<>();
-            int firstDataRow = Math.max(sheet.getFirstRowNum() + 1, 1);
+            int headerRow = sheet.getFirstRowNum();
+            int firstDataRow = Math.max(headerRow + 1, 1);
             for (int i = firstDataRow; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) {
@@ -221,15 +222,16 @@ public class DataImportServiceImpl implements DataImportService {
             case NUMERIC -> (int) Math.round(cell.getNumericCellValue());
             case STRING -> parseIntegerFromString(cell.getStringCellValue().trim(), index);
             case FORMULA -> {
-                switch (cell.getCachedFormulaResultType()) {
-                    case NUMERIC -> yield (int) Math.round(cell.getNumericCellValue());
-                    case STRING -> yield parseIntegerFromString(cell.getStringCellValue().trim(), index);
-                    case BLANK -> yield null;
+                Integer value = switch (cell.getCachedFormulaResultType()) {
+                    case NUMERIC -> (int) Math.round(cell.getNumericCellValue());
+                    case STRING -> parseIntegerFromString(cell.getStringCellValue().trim(), index);
+                    case BLANK -> null;
                     default -> {
                         String formatted = formatter.formatCellValue(cell).trim();
                         yield formatted.isEmpty() ? null : parseIntegerFromString(formatted, index);
                     }
-                }
+                };
+                yield value;
             }
             default -> {
                 String formatted = formatter.formatCellValue(cell).trim();
