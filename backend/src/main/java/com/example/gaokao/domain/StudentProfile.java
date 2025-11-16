@@ -17,6 +17,7 @@ public class StudentProfile {
     private String realName;
     private String nickname;
     private Integer score;
+    @TableField("rank")
     private Integer rank;
     @TableField("first_mock_score")
     private Integer firstMockScore;
