@@ -1,6 +1,8 @@
 package com.example.gaokao.service.impl;
 
 import com.example.gaokao.domain.*;
+import com.example.gaokao.domain.dto.ImportError;
+import com.example.gaokao.domain.dto.ImportResult;
 import com.example.gaokao.service.*;
 import java.math.BigDecimal;
 import org.apache.poi.ss.usermodel.DataFormatter;
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -102,13 +105,17 @@ public class DataImportServiceImpl implements DataImportService {
 
     @Override
     @Transactional
-    public int importExcel(MultipartFile file) {
+    public ImportResult importExcel(MultipartFile file) {
         int count = 0;
+        List<ImportError> errors = new ArrayList<>();
         DataFormatter formatter = new DataFormatter();
         try (InputStream inputStream = file.getInputStream(); Workbook workbook = new XSSFWorkbook(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
             if (sheet.getPhysicalNumberOfRows() <= 1) {
-                return 0;
+                return ImportResult.builder()
+                        .count(0)
+                        .success(true)
+                        .build();
             }
             Map<String, Long> universityCache = new HashMap<>();
             Map<String, Long> majorCache = new HashMap<>();
@@ -207,24 +214,24 @@ public class DataImportServiceImpl implements DataImportService {
                 String batch = getStringCellValue(row, columnIndexes.get("batch"), formatter);
                 int rowNumber = row.getRowNum();
                 Integer duration = getIntegerCellValue(row, columnIndexes.get("duration"), formatter, rowNumber,
-                        getFieldDisplayName("duration", MAJOR_FIELD_HEADER_ALIASES));
+                        getFieldDisplayName("duration", MAJOR_FIELD_HEADER_ALIASES), errors);
                 Integer tuition = getIntegerCellValue(row, columnIndexes.get("tuition"), formatter, rowNumber,
-                        getFieldDisplayName("tuition", MAJOR_FIELD_HEADER_ALIASES));
+                        getFieldDisplayName("tuition", MAJOR_FIELD_HEADER_ALIASES), errors);
                 Integer year = getIntegerCellValue(row, columnIndexes.get("year"), formatter, rowNumber,
-                        getFieldDisplayName("year", MAJOR_FIELD_HEADER_ALIASES));
+                        getFieldDisplayName("year", MAJOR_FIELD_HEADER_ALIASES), errors);
                 if (year == null) {
                     continue;
                 }
                 Integer minScore = getIntegerCellValue(row, columnIndexes.get("minScore"), formatter, rowNumber,
-                        getFieldDisplayName("minScore", MAJOR_FIELD_HEADER_ALIASES));
+                        getFieldDisplayName("minScore", MAJOR_FIELD_HEADER_ALIASES), errors);
                 Integer minRank = getIntegerCellValue(row, columnIndexes.get("minRank"), formatter, rowNumber,
-                        getFieldDisplayName("minRank", MAJOR_FIELD_HEADER_ALIASES));
+                        getFieldDisplayName("minRank", MAJOR_FIELD_HEADER_ALIASES), errors);
                 Integer avgScore = getIntegerCellValue(row, columnIndexes.get("avgScore"), formatter, rowNumber,
-                        getFieldDisplayName("avgScore", MAJOR_FIELD_HEADER_ALIASES));
+                        getFieldDisplayName("avgScore", MAJOR_FIELD_HEADER_ALIASES), errors);
                 Integer avgRank = getIntegerCellValue(row, columnIndexes.get("avgRank"), formatter, rowNumber,
-                        getFieldDisplayName("avgRank", MAJOR_FIELD_HEADER_ALIASES));
+                        getFieldDisplayName("avgRank", MAJOR_FIELD_HEADER_ALIASES), errors);
                 Integer admitCount = getIntegerCellValue(row, columnIndexes.get("planCount"), formatter, rowNumber,
-                        getFieldDisplayName("planCount", MAJOR_FIELD_HEADER_ALIASES));
+                        getFieldDisplayName("planCount", MAJOR_FIELD_HEADER_ALIASES), errors);
 
                 UniversityMajor universityMajor = universityMajorService.lambdaQuery()
                         .eq(UniversityMajor::getUniversityId, universityId)
@@ -276,19 +283,27 @@ public class DataImportServiceImpl implements DataImportService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to import Excel: " + e.getMessage(), e);
         }
-        return count;
+        return ImportResult.builder()
+                .count(count)
+                .success(errors.isEmpty())
+                .errors(errors)
+                .build();
     }
 
     @Override
     @Transactional
-    public int importStudentProfiles(MultipartFile file, String strategy) {
+    public ImportResult importStudentProfiles(MultipartFile file, String strategy) {
         StudentImportStrategy importStrategy = StudentImportStrategy.from(strategy);
         DataFormatter formatter = new DataFormatter();
         int count = 0;
+        List<ImportError> errors = new ArrayList<>();
         try (InputStream inputStream = file.getInputStream(); Workbook workbook = new XSSFWorkbook(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
             if (sheet.getPhysicalNumberOfRows() <= 1) {
-                return 0;
+                return ImportResult.builder()
+                        .count(0)
+                        .success(true)
+                        .build();
             }
             Map<String, Integer> columnIndexes = resolveFieldColumnIndexes(sheet, formatter,
                     STUDENT_FIELD_HEADER_ALIASES, STUDENT_REQUIRED_FIELDS);
@@ -308,17 +323,17 @@ public class DataImportServiceImpl implements DataImportService {
                 String subjects = getStringCellValue(row, columnIndexes.get("subjects"), formatter);
                 String targetMajorType = getStringCellValue(row, columnIndexes.get("targetMajorType"), formatter);
                 Integer score = getIntegerCellValue(row, columnIndexes.get("score"), formatter, i,
-                        getFieldDisplayName("score", STUDENT_FIELD_HEADER_ALIASES));
+                        getFieldDisplayName("score", STUDENT_FIELD_HEADER_ALIASES), errors);
                 Integer rank = getIntegerCellValue(row, columnIndexes.get("rank"), formatter, i,
-                        getFieldDisplayName("rank", STUDENT_FIELD_HEADER_ALIASES));
+                        getFieldDisplayName("rank", STUDENT_FIELD_HEADER_ALIASES), errors);
                 Integer firstMockScore = getIntegerCellValue(row, columnIndexes.get("firstMockScore"), formatter, i,
-                        getFieldDisplayName("firstMockScore", STUDENT_FIELD_HEADER_ALIASES));
+                        getFieldDisplayName("firstMockScore", STUDENT_FIELD_HEADER_ALIASES), errors);
                 Integer firstMockRank = getIntegerCellValue(row, columnIndexes.get("firstMockRank"), formatter, i,
-                        getFieldDisplayName("firstMockRank", STUDENT_FIELD_HEADER_ALIASES));
+                        getFieldDisplayName("firstMockRank", STUDENT_FIELD_HEADER_ALIASES), errors);
                 Integer secondMockScore = getIntegerCellValue(row, columnIndexes.get("secondMockScore"), formatter, i,
-                        getFieldDisplayName("secondMockScore", STUDENT_FIELD_HEADER_ALIASES));
+                        getFieldDisplayName("secondMockScore", STUDENT_FIELD_HEADER_ALIASES), errors);
                 Integer secondMockRank = getIntegerCellValue(row, columnIndexes.get("secondMockRank"), formatter, i,
-                        getFieldDisplayName("secondMockRank", STUDENT_FIELD_HEADER_ALIASES));
+                        getFieldDisplayName("secondMockRank", STUDENT_FIELD_HEADER_ALIASES), errors);
 
                 User user = userService.lambdaQuery().eq(User::getUsername, username).one();
                 if (user == null) {
@@ -360,7 +375,11 @@ public class DataImportServiceImpl implements DataImportService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to import student Excel: " + e.getMessage(), e);
         }
-        return count;
+        return ImportResult.builder()
+                .count(count)
+                .success(errors.isEmpty())
+                .errors(errors)
+                .build();
     }
 
     private String getStringCellValue(Row row, Integer index, DataFormatter formatter) {
@@ -374,7 +393,8 @@ public class DataImportServiceImpl implements DataImportService {
         return formatter.formatCellValue(cell).trim();
     }
 
-    private Integer getIntegerCellValue(Row row, Integer index, DataFormatter formatter, int rowNumber, String fieldDisplayName) {
+    private Integer getIntegerCellValue(Row row, Integer index, DataFormatter formatter, int rowNumber,
+                                       String fieldDisplayName, List<ImportError> errors) {
         if (row == null || index == null) {
             return null;
         }
@@ -389,42 +409,64 @@ public class DataImportServiceImpl implements DataImportService {
             case NUMERIC:
                 return (int) Math.round(cell.getNumericCellValue());
             case STRING:
-                return parseIntegerFromString(cell.getStringCellValue(), index, rowNumber, fieldDisplayName);
+                return parseIntegerFromString(cell.getStringCellValue(), index, rowNumber, fieldDisplayName, errors);
             case FORMULA:
                 switch (cell.getCachedFormulaResultType()) {
                     case NUMERIC:
                         return (int) Math.round(cell.getNumericCellValue());
                     case STRING:
-                        return parseIntegerFromString(cell.getStringCellValue(), index, rowNumber, fieldDisplayName);
+                        return parseIntegerFromString(cell.getStringCellValue(), index, rowNumber, fieldDisplayName, errors);
                     case BLANK:
                         return null;
                     default:
                         String formatted = formatter.formatCellValue(cell).trim();
-                        return formatted.isEmpty() ? null : parseIntegerFromString(formatted, index, rowNumber, fieldDisplayName);
+                        return formatted.isEmpty() ? null : parseIntegerFromString(formatted, index, rowNumber, fieldDisplayName, errors);
                 }
             default:
                 String formatted = formatter.formatCellValue(cell).trim();
-                return formatted.isEmpty() ? null : parseIntegerFromString(formatted, index, rowNumber, fieldDisplayName);
+                return formatted.isEmpty() ? null : parseIntegerFromString(formatted, index, rowNumber, fieldDisplayName, errors);
         }
     }
 
-    private Integer parseIntegerFromString(String text, int index, int rowNumber, String fieldDisplayName) {
-        if (text.isEmpty()) {
+    private Integer parseIntegerFromString(String text, int index, int rowNumber, String fieldDisplayName,
+                                          List<ImportError> errors) {
+        if (text == null) {
             return null;
         }
         String trimmed = text.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
         if (!trimmed.matches("^\\d+(\\.\\d+)?$")) {
-            throw new RuntimeException("第 " + (rowNumber + 1) + " 行、第 " + formatColumnName(index) + " 列（" + fieldDisplayName + "）的内容应为数字，但实际为：'" + trimmed + "'");
+            recordNumericError(errors, rowNumber, index, fieldDisplayName, trimmed);
+            return null;
         }
         try {
             BigDecimal decimal = new BigDecimal(trimmed).stripTrailingZeros();
             if (decimal.scale() > 0) {
-                throw new NumberFormatException("Non-integer value");
+                recordNumericError(errors, rowNumber, index, fieldDisplayName, trimmed);
+                return null;
             }
             return decimal.intValueExact();
         } catch (NumberFormatException | ArithmeticException ex) {
-            throw new RuntimeException("无法解析第 " + (rowNumber + 1) + " 行、第 " + formatColumnName(index) + " 列（" + fieldDisplayName + "）的整数值：'" + trimmed + "'", ex);
+            recordNumericError(errors, rowNumber, index, fieldDisplayName, trimmed);
+            return null;
         }
+    }
+
+    private void recordNumericError(List<ImportError> errors, int rowNumber, int columnIndex,
+                                    String fieldDisplayName, String value) {
+        if (errors == null) {
+            return;
+        }
+        String actualValue = value == null ? "" : value;
+        errors.add(ImportError.builder()
+                .row(rowNumber + 1)
+                .column(formatColumnName(columnIndex))
+                .field(fieldDisplayName)
+                .value(actualValue)
+                .message("该字段应为数字，当前为文本：" + actualValue)
+                .build());
     }
 
     private Map<String, Integer> resolveFieldColumnIndexes(Sheet sheet, DataFormatter formatter,

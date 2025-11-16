@@ -21,7 +21,16 @@
           <el-input-number v-model="form.currentRank" :min="1" />
         </el-form-item>
         <el-form-item label="选考科目">
-          <el-input v-model="form.subjects" placeholder="例如 物理 化学" />
+          <el-select
+            v-model="subjectSelection"
+            multiple
+            filterable
+            collapse-tags
+            clearable
+            placeholder="选择科目组合"
+          >
+            <el-option v-for="subject in subjectOptions" :key="subject" :label="subject" :value="subject" />
+          </el-select>
         </el-form-item>
         <el-form-item label="省份">
           <el-input v-model="form.province" placeholder="例如 浙江" />
@@ -52,10 +61,11 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { recommend, fetchStudentProfile } from '../../api/student'
 import { ElMessage } from 'element-plus'
+import { SUBJECT_OPTIONS, parseSubjectString, stringifySubjects } from '../../constants/subjects'
 
 const router = useRouter()
 
@@ -65,11 +75,17 @@ const form = reactive({
   province: ''
 })
 
+const subjectOptions = SUBJECT_OPTIONS
+const subjectSelection = ref<string[]>([])
 const segments = ref<any[]>([])
 const activeTab = ref('冲刺')
 const loading = ref(false)
 const profile = ref<any | null>(null)
 const profileLoading = ref(false)
+
+watch(subjectSelection, (value) => {
+  form.subjects = stringifySubjects(value)
+})
 
 const loadData = async () => {
   if (!form.currentRank) {
@@ -99,8 +115,8 @@ const loadProfile = async () => {
       if (data.rank && !form.currentRank) {
         form.currentRank = data.rank
       }
-      if (data.subjects && !form.subjects) {
-        form.subjects = data.subjects
+      if (data.subjects && !subjectSelection.value.length) {
+        subjectSelection.value = parseSubjectString(data.subjects)
       }
       if (data.province && !form.province) {
         form.province = data.province

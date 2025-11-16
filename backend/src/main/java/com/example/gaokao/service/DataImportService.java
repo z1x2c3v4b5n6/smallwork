@@ -1,8 +1,9 @@
 package com.example.gaokao.service;
 
+import com.example.gaokao.domain.dto.ImportResult;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface DataImportService {
-    int importExcel(MultipartFile file);
-    int importStudentProfiles(MultipartFile file, String strategy);
+    ImportResult importExcel(MultipartFile file);
+    ImportResult importStudentProfiles(MultipartFile file, String strategy);
 }
