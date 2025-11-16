@@ -13,7 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -22,29 +24,36 @@ import java.util.Set;
 @Service
 public class DataImportServiceImpl implements DataImportService {
 
-    private static final Map<String, List<String>> FIELD_HEADER_ALIASES = Map.ofEntries(
-            Map.entry("year", List.of("年份", "year", "年度")),
-            Map.entry("province", List.of("生源地", "生源省份", "省份", "院校省份")),
-            Map.entry("city", List.of("院校所在地", "所在城市", "城市", "地区")),
-            Map.entry("type", List.of("科类", "文理科", "选科要求", "选考科目")),
-            Map.entry("batch", List.of("批次", "录取批次", "招生批次")),
-            Map.entry("doubleTop", List.of("是否双一流", "双一流", "双一流标识", "是否985", "是否211")),
-            Map.entry("universityName", List.of("院校名称", "学校名称", "高校名称")),
-            Map.entry("category", List.of("专业类别", "专业类", "类别", "科类", "学科门类")),
-            Map.entry("discipline", List.of("专业方向", "方向", "学科门类")),
-            Map.entry("majorLevel", List.of("专业全称", "层次", "专业层次", "培养层次")),
-            Map.entry("majorRemark", List.of("专业备注", "备注", "说明")),
-            Map.entry("majorName", List.of("专业名称", "专业", "招生专业")),
-            Map.entry("duration", List.of("学制", "修业年限", "学制(年)")),
-            Map.entry("tuition", List.of("学费", "学费(元/年)", "学费（元/年）")),
-            Map.entry("planCount", List.of("计划人数", "招生计划", "录取人数", "计划数")),
-            Map.entry("minScore", List.of("最低分", "最低分数", "去年最低分", "当年最低分")),
-            Map.entry("minRank", List.of("最低位次", "最低排名", "去年最低位次", "当年最低位次")),
-            Map.entry("avgScore", List.of("平均分", "平均分数", "去年平均分")),
-            Map.entry("avgRank", List.of("平均位次", "平均排名", "去年平均位次"))
-    );
+    private static final int HEADER_ROW_INDEX = 0;
+    private static final int DATA_START_ROW_INDEX = 1;
 
-    private static final Set<String> REQUIRED_FIELDS = Set.of("year", "universityName", "majorName", "batch");
+    private static final Map<String, List<String>> FIELD_HEADER_ALIASES = new HashMap<>();
+
+    private static final Set<String> REQUIRED_FIELDS = new HashSet<>();
+
+    static {
+        FIELD_HEADER_ALIASES.put("year", Arrays.asList("年份", "year", "年度"));
+        FIELD_HEADER_ALIASES.put("province", Arrays.asList("生源地", "生源省份", "省份", "院校省份"));
+        FIELD_HEADER_ALIASES.put("city", Arrays.asList("院校所在地", "所在城市", "城市", "地区"));
+        FIELD_HEADER_ALIASES.put("type", Arrays.asList("科类", "文理科", "选科要求", "选考科目"));
+        FIELD_HEADER_ALIASES.put("batch", Arrays.asList("批次", "录取批次", "招生批次", "录取批次名称"));
+        FIELD_HEADER_ALIASES.put("doubleTop", Arrays.asList("是否双一流", "双一流", "双一流标识", "是否985", "是否211"));
+        FIELD_HEADER_ALIASES.put("universityName", Arrays.asList("院校名称", "学校名称", "高校名称"));
+        FIELD_HEADER_ALIASES.put("category", Arrays.asList("专业类别", "专业类", "类别", "科类", "学科门类"));
+        FIELD_HEADER_ALIASES.put("discipline", Arrays.asList("专业方向", "方向", "学科门类"));
+        FIELD_HEADER_ALIASES.put("majorLevel", Arrays.asList("专业全称", "层次", "专业层次", "培养层次"));
+        FIELD_HEADER_ALIASES.put("majorRemark", Arrays.asList("专业备注", "备注", "说明"));
+        FIELD_HEADER_ALIASES.put("majorName", Arrays.asList("专业名称", "专业", "招生专业"));
+        FIELD_HEADER_ALIASES.put("duration", Arrays.asList("学制", "修业年限", "学制(年)"));
+        FIELD_HEADER_ALIASES.put("tuition", Arrays.asList("学费", "学费(元/年)", "学费（元/年）"));
+        FIELD_HEADER_ALIASES.put("planCount", Arrays.asList("计划人数", "招生计划", "录取人数", "计划数"));
+        FIELD_HEADER_ALIASES.put("minScore", Arrays.asList("最低分", "最低分数", "去年最低分", "当年最低分"));
+        FIELD_HEADER_ALIASES.put("minRank", Arrays.asList("最低位次", "最低排名", "去年最低位次", "当年最低位次"));
+        FIELD_HEADER_ALIASES.put("avgScore", Arrays.asList("平均分", "平均分数", "去年平均分"));
+        FIELD_HEADER_ALIASES.put("avgRank", Arrays.asList("平均位次", "平均排名", "去年平均位次"));
+
+        REQUIRED_FIELDS.addAll(Arrays.asList("year", "universityName", "majorName", "batch"));
+    }
 
     private final UniversityService universityService;
     private final MajorService majorService;
@@ -71,16 +80,13 @@ public class DataImportServiceImpl implements DataImportService {
             }
             Map<String, Long> universityCache = new HashMap<>();
             Map<String, Long> majorCache = new HashMap<>();
-            int headerRow = sheet.getFirstRowNum();
-            Row header = sheet.getRow(headerRow);
+            Row header = sheet.getRow(HEADER_ROW_INDEX);
             if (header == null) {
                 throw new RuntimeException("Excel 缺少表头行");
             }
-            Map<String, Integer> headerIndexMap = buildHeaderIndexMap(header, formatter);
-            Map<String, Integer> columnIndexes = resolveFieldColumnIndexes(headerIndexMap);
+            Map<String, Integer> columnIndexes = resolveFieldColumnIndexes(sheet, formatter);
 
-            int firstDataRow = Math.max(headerRow + 1, 1);
-            for (int i = firstDataRow; i <= sheet.getLastRowNum(); i++) {
+            for (int i = DATA_START_ROW_INDEX; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) {
                     continue;
@@ -252,62 +258,68 @@ public class DataImportServiceImpl implements DataImportService {
             return null;
         }
 
-        return switch (cell.getCellType()) {
-            case BLANK -> null;
-            case NUMERIC -> (int) Math.round(cell.getNumericCellValue());
-            case STRING -> parseIntegerFromString(cell.getStringCellValue().trim(), index, rowNumber, fieldDisplayName);
-            case FORMULA -> {
-                Integer value = switch (cell.getCachedFormulaResultType()) {
-                    case NUMERIC -> (int) Math.round(cell.getNumericCellValue());
-                    case STRING -> parseIntegerFromString(cell.getStringCellValue().trim(), index, rowNumber, fieldDisplayName);
-                    case BLANK -> null;
-                    default -> {
+        switch (cell.getCellType()) {
+            case BLANK:
+                return null;
+            case NUMERIC:
+                return (int) Math.round(cell.getNumericCellValue());
+            case STRING:
+                return parseIntegerFromString(cell.getStringCellValue(), index, rowNumber, fieldDisplayName);
+            case FORMULA:
+                switch (cell.getCachedFormulaResultType()) {
+                    case NUMERIC:
+                        return (int) Math.round(cell.getNumericCellValue());
+                    case STRING:
+                        return parseIntegerFromString(cell.getStringCellValue(), index, rowNumber, fieldDisplayName);
+                    case BLANK:
+                        return null;
+                    default:
                         String formatted = formatter.formatCellValue(cell).trim();
-                        yield formatted.isEmpty() ? null : parseIntegerFromString(formatted, index, rowNumber, fieldDisplayName);
-                    }
-                };
-                yield value;
-            }
-            default -> {
+                        return formatted.isEmpty() ? null : parseIntegerFromString(formatted, index, rowNumber, fieldDisplayName);
+                }
+            default:
                 String formatted = formatter.formatCellValue(cell).trim();
-                yield formatted.isEmpty() ? null : parseIntegerFromString(formatted, index, rowNumber, fieldDisplayName);
-            }
-        };
+                return formatted.isEmpty() ? null : parseIntegerFromString(formatted, index, rowNumber, fieldDisplayName);
+        }
     }
 
     private Integer parseIntegerFromString(String text, int index, int rowNumber, String fieldDisplayName) {
         if (text.isEmpty()) {
             return null;
         }
+        String trimmed = text.trim();
+        if (!trimmed.matches("^\\d+(\\.\\d+)?$")) {
+            throw new RuntimeException("第 " + (rowNumber + 1) + " 行、第 " + formatColumnName(index) + " 列（" + fieldDisplayName + "）的内容应为数字，但实际为：'" + trimmed + "'");
+        }
         try {
-            BigDecimal decimal = new BigDecimal(text).stripTrailingZeros();
+            BigDecimal decimal = new BigDecimal(trimmed).stripTrailingZeros();
             if (decimal.scale() > 0) {
                 throw new NumberFormatException("Non-integer value");
             }
             return decimal.intValueExact();
         } catch (NumberFormatException | ArithmeticException ex) {
-            throw new RuntimeException("无法解析第 " + (rowNumber + 1) + " 行、第 " + (index + 1) + " 列（" + fieldDisplayName + "）的整数值：'" + text + "'", ex);
+            throw new RuntimeException("无法解析第 " + (rowNumber + 1) + " 行、第 " + formatColumnName(index) + " 列（" + fieldDisplayName + "）的整数值：'" + trimmed + "'", ex);
         }
     }
 
-    private Map<String, Integer> buildHeaderIndexMap(Row headerRow, DataFormatter formatter) {
+    private Map<String, Integer> resolveFieldColumnIndexes(Sheet sheet, DataFormatter formatter) {
+        Row headerRow = sheet.getRow(HEADER_ROW_INDEX);
+        if (headerRow == null) {
+            throw new RuntimeException("Excel 缺少表头行");
+        }
         Map<String, Integer> headerIndexMap = new HashMap<>();
         short lastCellNum = headerRow.getLastCellNum();
         for (int i = 0; i < lastCellNum; i++) {
             var cell = headerRow.getCell(i);
-            String title = cell == null ? "" : formatter.formatCellValue(cell).trim();
+            String title = cell == null ? "" : formatter.formatCellValue(cell);
             if (!title.isEmpty()) {
                 headerIndexMap.put(normalizeHeader(title), i);
             }
         }
-        return headerIndexMap;
-    }
-
-    private Map<String, Integer> resolveFieldColumnIndexes(Map<String, Integer> headerIndexMap) {
         Map<String, Integer> columnIndexes = new HashMap<>();
         FIELD_HEADER_ALIASES.forEach((field, aliases) -> {
             Integer index = aliases.stream()
-                    .map(this::normalizeHeader)
+                    .map(alias -> normalizeHeader(alias))
                     .map(headerIndexMap::get)
                     .filter(Objects::nonNull)
                     .findFirst()
@@ -326,6 +338,17 @@ public class DataImportServiceImpl implements DataImportService {
         }
         String trimmed = header.replace('\u00A0', ' ').trim();
         return trimmed.replaceAll("\\s+", "").toLowerCase();
+    }
+
+    private String formatColumnName(int columnIndex) {
+        int index = columnIndex;
+        StringBuilder columnName = new StringBuilder();
+        while (index >= 0) {
+            int remainder = index % 26;
+            columnName.insert(0, (char) ('A' + remainder));
+            index = (index / 26) - 1;
+        }
+        return columnName.toString();
     }
 
     private String getFieldDisplayName(String fieldKey) {
