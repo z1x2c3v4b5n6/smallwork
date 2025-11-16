@@ -1,8 +1,9 @@
 package com.example.gaokao.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.gaokao.domain.*;
 import com.example.gaokao.service.*;
+import java.math.BigDecimal;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -35,6 +36,7 @@ public class DataImportServiceImpl implements DataImportService {
     @Transactional
     public int importExcel(MultipartFile file) {
         int count = 0;
+        DataFormatter formatter = new DataFormatter();
         try (InputStream inputStream = file.getInputStream(); Workbook workbook = new XSSFWorkbook(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
             if (sheet.getPhysicalNumberOfRows() <= 1) {
@@ -42,19 +44,26 @@ public class DataImportServiceImpl implements DataImportService {
             }
             Map<String, Long> universityCache = new HashMap<>();
             Map<String, Long> majorCache = new HashMap<>();
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            int headerRow = sheet.getFirstRowNum();
+            int firstDataRow = Math.max(headerRow + 1, 1);
+            for (int i = firstDataRow; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) {
                     continue;
                 }
-                String universityName = row.getCell(0).getStringCellValue();
-                String province = row.getCell(1).getStringCellValue();
-                String city = row.getCell(2).getStringCellValue();
-                String level = row.getCell(3).getStringCellValue();
-                String type = row.getCell(4).getStringCellValue();
-                boolean isDoubleTop = "是".equalsIgnoreCase(row.getCell(5).getStringCellValue()) ||
-                        "Y".equalsIgnoreCase(row.getCell(5).getStringCellValue()) ||
-                        "true".equalsIgnoreCase(row.getCell(5).getStringCellValue());
+                String universityName = getStringCellValue(row, 6, formatter);
+                if (universityName.isEmpty()) {
+                    continue;
+                }
+                String province = getStringCellValue(row, 2, formatter);
+                String city = getStringCellValue(row, 7, formatter);
+                String level = "";
+                String type = getStringCellValue(row, 3, formatter);
+                String doubleTopFlag = getStringCellValue(row, 5, formatter).toLowerCase();
+                boolean isDoubleTop = "是".equals(doubleTopFlag) ||
+                        "y".equals(doubleTopFlag) ||
+                        "true".equals(doubleTopFlag) ||
+                        "1".equals(doubleTopFlag);
 
                 Long universityId = universityCache.computeIfAbsent(universityName, name -> {
                     University exist = universityService.lambdaQuery().eq(University::getName, name).one();
@@ -72,11 +81,15 @@ public class DataImportServiceImpl implements DataImportService {
                     return exist.getId();
                 });
 
-                String majorName = row.getCell(6).getStringCellValue();
-                String category = row.getCell(7).getStringCellValue();
-                String discipline = row.getCell(8).getStringCellValue();
-                String subjectReq = row.getCell(9).getStringCellValue();
-                String majorLevel = row.getCell(10).getStringCellValue();
+                String majorName = getStringCellValue(row, 11, formatter);
+                if (majorName.isEmpty()) {
+                    continue;
+                }
+                String category = getStringCellValue(row, 3, formatter);
+                String discipline = getStringCellValue(row, 9, formatter);
+                String subjectReq = "";
+                String majorLevel = getStringCellValue(row, 10, formatter);
+                String majorRemark = getStringCellValue(row, 12, formatter);
 
                 Long majorId = majorCache.computeIfAbsent(majorName, name -> {
                     Major exist = majorService.lambdaQuery().eq(Major::getName, name).one();
@@ -87,21 +100,49 @@ public class DataImportServiceImpl implements DataImportService {
                         major.setDiscipline(discipline);
                         major.setSubjectReq(subjectReq);
                         major.setLevel(majorLevel);
+                        major.setRemark(majorRemark);
                         majorService.save(major);
                         return major.getId();
+                    }
+                    boolean updated = false;
+                    if (!category.isEmpty() && !category.equals(exist.getCategory())) {
+                        exist.setCategory(category);
+                        updated = true;
+                    }
+                    if (!discipline.isEmpty() && !discipline.equals(exist.getDiscipline())) {
+                        exist.setDiscipline(discipline);
+                        updated = true;
+                    }
+                    if (!subjectReq.isEmpty() && !subjectReq.equals(exist.getSubjectReq())) {
+                        exist.setSubjectReq(subjectReq);
+                        updated = true;
+                    }
+                    if (!majorLevel.isEmpty() && !majorLevel.equals(exist.getLevel())) {
+                        exist.setLevel(majorLevel);
+                        updated = true;
+                    }
+                    if (!majorRemark.isEmpty() && !majorRemark.equals(exist.getRemark())) {
+                        exist.setRemark(majorRemark);
+                        updated = true;
+                    }
+                    if (updated) {
+                        majorService.updateById(exist);
                     }
                     return exist.getId();
                 });
 
-                String batch = row.getCell(11).getStringCellValue();
-                int duration = (int) row.getCell(12).getNumericCellValue();
-                int tuition = (int) row.getCell(13).getNumericCellValue();
-                int year = (int) row.getCell(14).getNumericCellValue();
-                int minScore = (int) row.getCell(15).getNumericCellValue();
-                int minRank = (int) row.getCell(16).getNumericCellValue();
-                int avgScore = (int) row.getCell(17).getNumericCellValue();
-                int avgRank = (int) row.getCell(18).getNumericCellValue();
-                int admitCount = (int) row.getCell(19).getNumericCellValue();
+                String batch = getStringCellValue(row, 4, formatter);
+                Integer duration = getIntegerCellValue(row, 13, formatter);
+                Integer tuition = getIntegerCellValue(row, 14, formatter);
+                Integer year = getIntegerCellValue(row, 1, formatter);
+                if (year == null) {
+                    continue;
+                }
+                Integer minScore = getIntegerCellValue(row, 16, formatter);
+                Integer minRank = getIntegerCellValue(row, 17, formatter);
+                Integer avgScore = getIntegerCellValue(row, 18, formatter);
+                Integer avgRank = getIntegerCellValue(row, 19, formatter);
+                Integer admitCount = getIntegerCellValue(row, 15, formatter);
 
                 UniversityMajor universityMajor = universityMajorService.lambdaQuery()
                         .eq(UniversityMajor::getUniversityId, universityId)
@@ -154,5 +195,63 @@ public class DataImportServiceImpl implements DataImportService {
             throw new RuntimeException("Failed to import Excel: " + e.getMessage(), e);
         }
         return count;
+    }
+
+    private String getStringCellValue(Row row, int index, DataFormatter formatter) {
+        if (row == null) {
+            return "";
+        }
+        var cell = row.getCell(index);
+        if (cell == null) {
+            return "";
+        }
+        return formatter.formatCellValue(cell).trim();
+    }
+
+    private Integer getIntegerCellValue(Row row, int index, DataFormatter formatter) {
+        if (row == null) {
+            return null;
+        }
+        var cell = row.getCell(index);
+        if (cell == null) {
+            return null;
+        }
+
+        return switch (cell.getCellType()) {
+            case BLANK -> null;
+            case NUMERIC -> (int) Math.round(cell.getNumericCellValue());
+            case STRING -> parseIntegerFromString(cell.getStringCellValue().trim(), index);
+            case FORMULA -> {
+                Integer value = switch (cell.getCachedFormulaResultType()) {
+                    case NUMERIC -> (int) Math.round(cell.getNumericCellValue());
+                    case STRING -> parseIntegerFromString(cell.getStringCellValue().trim(), index);
+                    case BLANK -> null;
+                    default -> {
+                        String formatted = formatter.formatCellValue(cell).trim();
+                        yield formatted.isEmpty() ? null : parseIntegerFromString(formatted, index);
+                    }
+                };
+                yield value;
+            }
+            default -> {
+                String formatted = formatter.formatCellValue(cell).trim();
+                yield formatted.isEmpty() ? null : parseIntegerFromString(formatted, index);
+            }
+        };
+    }
+
+    private Integer parseIntegerFromString(String text, int index) {
+        if (text.isEmpty()) {
+            return null;
+        }
+        try {
+            BigDecimal decimal = new BigDecimal(text).stripTrailingZeros();
+            if (decimal.scale() > 0) {
+                throw new NumberFormatException("Non-integer value");
+            }
+            return decimal.intValueExact();
+        } catch (NumberFormatException | ArithmeticException ex) {
+            throw new RuntimeException("无法解析第 " + (index + 1) + " 列的整数值：'" + text + "'", ex);
+        }
     }
 }
