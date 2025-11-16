@@ -1,3 +1,6 @@
+DROP TABLE IF EXISTS announcement;
+DROP TABLE IF EXISTS import_log;
+DROP TABLE IF EXISTS dictionary_item;
 DROP TABLE IF EXISTS plan_item;
 DROP TABLE IF EXISTS plan;
 DROP TABLE IF EXISTS admission_stat;
@@ -121,6 +124,46 @@ CREATE TABLE IF NOT EXISTS plan_item (
 );
 CREATE INDEX idx_plan_item_plan ON plan_item(plan_id);
 
+CREATE TABLE IF NOT EXISTS dictionary_item (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    type VARCHAR(64) NOT NULL,
+    code VARCHAR(64) NOT NULL,
+    label VARCHAR(100) NOT NULL,
+    sort_order INT DEFAULT 0,
+    enabled TINYINT(1) DEFAULT 1,
+    remark VARCHAR(255),
+    CONSTRAINT uk_type_code UNIQUE (type, code)
+);
+CREATE INDEX idx_dictionary_type ON dictionary_item(type);
+
+CREATE TABLE IF NOT EXISTS announcement (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(200) NOT NULL,
+    content TEXT,
+    status VARCHAR(20) DEFAULT 'draft',
+    publish_time DATETIME,
+    audience VARCHAR(50),
+    created_by VARCHAR(100),
+    pinned TINYINT(1) DEFAULT 0
+);
+CREATE INDEX idx_announcement_status ON announcement(status);
+CREATE INDEX idx_announcement_pinned ON announcement(pinned);
+
+CREATE TABLE IF NOT EXISTS import_log (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    file_name VARCHAR(255),
+    operator VARCHAR(100),
+    type VARCHAR(50),
+    status VARCHAR(20) DEFAULT 'processing',
+    message VARCHAR(500),
+    total_count INT DEFAULT 0,
+    success_count INT DEFAULT 0,
+    fail_count INT DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_import_log_type ON import_log(type);
+CREATE INDEX idx_import_log_created ON import_log(created_at);
+
 INSERT INTO user (username, password, role) VALUES
     ('admin', '123456', 'ROLE_ADMIN'),
     ('student', '123456', 'ROLE_STUDENT')
@@ -162,3 +205,19 @@ ON DUPLICATE KEY UPDATE name = VALUES(name);
 INSERT INTO plan_item (plan_id, university_id, major_id, batch, order_no) VALUES
     ((SELECT id FROM plan WHERE name='示例方案'), (SELECT id FROM university WHERE name='浙江大学'), (SELECT id FROM major WHERE name='计算机科学与技术'), '本科一批', 1)
 ON DUPLICATE KEY UPDATE order_no = VALUES(order_no);
+
+INSERT INTO dictionary_item (type, label, code, sort_order, enabled, remark) VALUES
+    ('BATCH', '本科一批', 'BATCH1', 1, 1, '重点本科批次'),
+    ('BATCH', '本科二批', 'BATCH2', 2, 1, '普通本科'),
+    ('BATCH', '高职专科', 'BATCH3', 3, 1, '专科批次'),
+    ('UNIVERSITY_LEVEL', '985', 'LEVEL_985', 1, 1, '985 高校'),
+    ('UNIVERSITY_LEVEL', '211', 'LEVEL_211', 2, 1, '211 高校'),
+    ('UNIVERSITY_LEVEL', '双一流', 'LEVEL_DOUBLE_TOP', 3, 1, '双一流建设高校'),
+    ('UNIVERSITY_LEVEL', '本科', 'LEVEL_UNDERGRAD', 4, 1, '普通本科院校'),
+    ('SUBJECT', '物理', 'PHYSICS', 1, 1, '首选物理'),
+    ('SUBJECT', '历史', 'HISTORY', 2, 1, '首选历史'),
+    ('SUBJECT', '化学', 'CHEMISTRY', 3, 1, NULL),
+    ('SUBJECT', '生物', 'BIOLOGY', 4, 1, NULL),
+    ('SUBJECT', '政治', 'POLITICS', 5, 1, NULL),
+    ('SUBJECT', '地理', 'GEOGRAPHY', 6, 1, NULL)
+ON DUPLICATE KEY UPDATE label = VALUES(label), remark = VALUES(remark), enabled = VALUES(enabled);
